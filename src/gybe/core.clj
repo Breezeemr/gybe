@@ -18,6 +18,7 @@
 
 (defn- create-elem-ns [doc tag attrs content]
   (let [el (. doc (createElementNS fo-ns (name tag)))]
+    (assert (map? attrs))
     (doseq [[k v] attrs]
       (.setAttributeNS el nil (name k) v))
     (doseq [item content]
@@ -28,30 +29,35 @@
 
 (defn- element-compile-strategy
   "Returns the compilation strategy to use for a given element."
-  [[doc tag attrs & content :as element]]
+  [doc [tag attrs & content :as element]]
+  ;(assert (coll? element))
   (cond
+    (string? element) ::string
     (not-any? coll? (rest element)) ::all-literal ; e.g. [:span "foo"]
     (and (keyword? tag) (map? attrs)) ::literal-tag-and-attributes     ; e.g. [:span {} x]
     :else ::default))                      ; e.g. [x]
 
 (defmulti compile-element element-compile-strategy)
 (defmethod compile-element ::all-literal
-  [[doc tag & content]]
+  [doc [tag & content]]
   (prn "all-lit" doc tag content)
   (create-elem-ns doc tag {} content))
+(defmethod compile-element ::string
+  [doc s]
+  s)
 (defmethod compile-element ::literal-tag-and-attributes
-  [[doc tag attrs & content]]
+  [doc [ tag attrs & content]]
+  (prn "stuff" doc tag attrs content)
   ;; incorrect, needs to compile content if a vector
-  (create-elem-ns doc tag attrs content))
+  (create-elem-ns doc tag attrs (map (partial compile-element doc) content)))
 (defmethod compile-element ::default
-  [[doc tag & else]]
+  [doc [tag & else]]
   (prn "herp derp default: " tag else)
-  (compile-element
-   (into [doc tag]
-         (for [e else]
-           (if (vector? e)
-             (compile-element (into [doc] e))
-             e)))))
+  (create-elem-ns doc tag {}
+    (for [e else]
+      (if (vector? e)
+        (compile-element doc e)
+        e))))
 
 (defn- make-document-builder []
   (let [dbf (DocumentBuilderFactory/newInstance)
@@ -62,7 +68,9 @@
 (defn ->dom [content & {:keys [root]}]
   (let [db (when (not root) (make-document-builder))
         doc-root (or root (.newDocument db))]
-    (compile-element (into [doc-root] content))))
+
+    (.appendChild doc-root (compile-element doc-root content))
+    doc-root))
 
 (defn convert-dom->pdf [fo-doc pdf]
   (let [out (FileOutputStream. pdf)
@@ -90,3 +98,5 @@
            [:fo:flow {:flow-name "xsl-region-body"}
             content]]]))
 
+(comment (convert-dom->pdf
+           (->fop [:fo:block {} "hi"]) "test.pdf"))

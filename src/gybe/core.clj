@@ -95,8 +95,8 @@
                                     :margin-right "1in"}
             [:fo:region-body]]]
           [:fo:page-sequence {:master-reference "letter"}
-           [:fo:flow {:flow-name "xsl-region-body"}
-            content]]]))
+           (into [:fo:flow {:flow-name "xsl-region-body"}
+                  ] content)]]))
 
 (comment (convert-dom->pdf
            (->fop [:fo:block {} "hi"]) "test.pdf"))

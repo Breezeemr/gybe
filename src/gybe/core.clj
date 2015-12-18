@@ -83,7 +83,7 @@
     (. trans (transform src res))
     (.close out)))
 
-(defn ->fop [content]
+(defn ->fop [& content]
   (->dom [:fo:root
           [:fo:layout-master-set
            [:fo:simple-page-master {:master-name "letter"

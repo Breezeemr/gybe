@@ -17,13 +17,16 @@
     (.writeToString serializer dom)))
 
 (defn- create-elem-ns [doc tag attrs content]
-  (let [el (. doc (createElementNS fo-ns (name tag)))]
+  (let [el (. doc (createElementNS fo-ns (name tag)))
+        content (if (coll? content) content [content])]
     (doseq [[k v] attrs]
       (.setAttributeNS el nil (name k) v))
     (doseq [item content]
-      (if (string? item)
-        (.appendChild el (.. el (getOwnerDocument) (createTextNode item)))
-        (.appendChild el item)))
+      (cond
+        (string? item) (.appendChild
+                        el
+                        (.. el (getOwnerDocument) (createTextNode item)))
+        (not (nil? item)) (.appendChild el item)))
     el))
 
 (defn- element-compile-strategy
@@ -37,15 +40,16 @@
 (defmulti compile-element element-compile-strategy)
 (defmethod compile-element ::all-literal
   [[doc tag & content]]
-  (prn "all-lit" doc tag content)
   (create-elem-ns doc tag {} content))
 (defmethod compile-element ::literal-tag-and-attributes
   [[doc tag attrs & content]]
-  ;; incorrect, needs to compile content if a vector
-  (create-elem-ns doc tag attrs content))
+  (apply (partial create-elem-ns doc tag attrs)
+                  (map #(if (vector? %)
+                          (->> % (into [doc]) compile-element)
+                          content)
+                       content)))
 (defmethod compile-element ::default
   [[doc tag & else]]
-  (prn "herp derp default: " tag else)
   (compile-element
    (into [doc tag]
          (for [e else]

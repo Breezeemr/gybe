@@ -16,9 +16,11 @@
     (.. serializer (getDomConfig) (setParameter "xml-declaration" false))
     (.writeToString serializer dom)))
 
-(defn- create-elem-ns [doc tag attrs content]
+(defn- create-elem-ns [doc tag attrs & content]
   (let [el (. doc (createElementNS fo-ns (name tag)))
-        content (if (coll? content) content [content])]
+        content (if (seq? content)
+                  content
+                  (list content))]
     (doseq [[k v] attrs]
       (.setAttributeNS el nil (name k) v))
     (doseq [item content]
@@ -37,17 +39,17 @@
     (and (keyword? tag) (map? attrs)) ::literal-tag-and-attributes     ; e.g. [:span {} x]
     :else ::default))                      ; e.g. [x]
 
-(defmulti compile-element element-compile-strategy)
+(defmulti #^{:private true} compile-element element-compile-strategy)
 (defmethod compile-element ::all-literal
   [[doc tag & content]]
-  (create-elem-ns doc tag {} content))
+  (apply (partial create-elem-ns doc tag {}) content))
 (defmethod compile-element ::literal-tag-and-attributes
   [[doc tag attrs & content]]
   (apply (partial create-elem-ns doc tag attrs)
-                  (map #(if (vector? %)
-                          (->> % (into [doc]) compile-element)
-                          content)
-                       content)))
+         (map #(if (vector? %)
+                 (->> % (into [doc]) compile-element)
+                 %)
+              content)))
 (defmethod compile-element ::default
   [[doc tag & else]]
   (compile-element
@@ -63,9 +65,9 @@
         db (.newDocumentBuilder dbf)]
     db))
 
-(defn ->dom [content & {:keys [root]}]
-  (let [db (when (not root) (make-document-builder))
-        doc-root (or root (.newDocument db))]
+(defn ->dom [content]
+  (let [db (make-document-builder)
+        doc-root (.newDocument db)]
     (compile-element (into [doc-root] content))))
 
 (defn convert-dom->pdf [fo-doc pdf]
@@ -79,7 +81,7 @@
     (. trans (transform src res))
     (.close out)))
 
-(defn ->fop [content]
+(defn ->fop [& content]
   (->dom [:fo:root
           [:fo:layout-master-set
            [:fo:simple-page-master {:master-name "letter"
@@ -91,6 +93,5 @@
                                     :margin-right "1in"}
             [:fo:region-body]]]
           [:fo:page-sequence {:master-reference "letter"}
-           [:fo:flow {:flow-name "xsl-region-body"}
-            content]]]))
+           (into [:fo:flow {:flow-name "xsl-region-body"}] content)]]))
 

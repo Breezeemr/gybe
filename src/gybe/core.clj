@@ -16,7 +16,7 @@
     (.. serializer (getDomConfig) (setParameter "xml-declaration" false))
     (.writeToString serializer dom)))
 
-(defn- create-elem-ns [doc tag attrs & content]
+(defn- create-elem-ns [doc tag attrs content]
   (let [el (. doc (createElementNS fo-ns (name tag)))
         content (if (seq? content)
                   content
@@ -42,14 +42,14 @@
 (defmulti #^{:private true} compile-element element-compile-strategy)
 (defmethod compile-element ::all-literal
   [[doc tag & content]]
-  (apply (partial create-elem-ns doc tag {}) content))
+  (create-elem-ns doc tag {} content))
 (defmethod compile-element ::literal-tag-and-attributes
   [[doc tag attrs & content]]
-  (apply (partial create-elem-ns doc tag attrs)
-         (map #(if (vector? %)
-                 (->> % (into [doc]) compile-element)
-                 %)
-              content)))
+  (create-elem-ns doc tag attrs
+    (map #(if (vector? %)
+           (->> % (into [doc]) compile-element)
+           %)
+      content)))
 (defmethod compile-element ::default
   [[doc tag & else]]
   (compile-element

@@ -1,6 +1,6 @@
 (defproject gybe "0.1.0"
   :description "Gybe is a Hiccup style DOM constructor targetting Apache FOP"
-  :url "http://example.com/FIXME"
+  :url "https://github.com/Breezeemr/gybe/"
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [[org.clojure/clojure "1.7.0"]

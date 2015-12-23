@@ -1,4 +1,4 @@
-(defproject gybe "0.1.0-SNAPSHOT"
+(defproject gybe "0.1.0"
   :description "Gybe is a Hiccup style DOM constructor targetting Apache FOP"
   :url "http://example.com/FIXME"
   :license {:name "Eclipse Public License"

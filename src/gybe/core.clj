@@ -70,16 +70,16 @@
         doc-root (.newDocument db)]
     (compile-element (into [doc-root] content))))
 
-(defn convert-dom->pdf [fo-doc pdf]
-  (let [out (FileOutputStream. pdf)
-        fo-ua (.newFOUserAgent fop-factory)
+(defn convert-dom->pdf
+  "takes a byte array output stream and renders a FOP PDF to it"
+  [fo-doc out]
+  (let [fo-ua (.newFOUserAgent fop-factory)
         fop (. fop-factory (newFop MimeConstants/MIME_PDF fo-ua out))
         trans-factory (TransformerFactory/newInstance)
         trans (.newTransformer trans-factory)
         src (DOMSource. fo-doc)
         res (SAXResult. (.getDefaultHandler fop))]
-    (. trans (transform src res))
-    (.close out)))
+    (. trans (transform src res))))
 
 (defn ->fop [& content]
   (->dom [:fo:root

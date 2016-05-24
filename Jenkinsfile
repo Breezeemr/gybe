@@ -1,13 +1,14 @@
-node ('master'){
+// Always omit teamDomain & token args from slackSend: these come from Jenkins
+// Can also omit channel to use the default (#commits)
+
+node {
   checkout scm
-  slackSend channel: '#commits', color: 'green', message: "Jenkins Building <${env.BUILD_URL}console|${env.BUILD_TAG}>", teamDomain: 'breezeehr', token: 'lTYii0DOVv4h5oAkSfwkWrTT'
   try {
     sh "mkdir -p target/reports && /var/lib/jenkins/bin/lein with-profile +jenkins test-out junit target/reports/TEST-\$( date +%s ).xml"
     step([$class: 'JUnitResultArchiver', testResults: '**/target/reports/TEST-*.xml'])
-    slackSend channel: '#commits', color: 'green', message: 'Succeeded', teamDomain: 'breezeehr', token: 'lTYii0DOVv4h5oAkSfwkWrTT'
+    slackSend color: 'good', message: "Gybe tests succeeded: <${env.BUILD_URL}console|${env.BUILD_TAG}>"
   } catch (err) {
-    slackSend channel: '#commits', color: 'red', message: "Build Failed :thumbsdown: <${env.BUILD_URL}console|${env.BUILD_TAG}>", teamDomain: 'breezeehr', token: 'lTYii0DOVv4h5oAkSfwkWrTT'
+    slackSend color: 'danger', message: "Gybe tests failed: <${env.BUILD_URL}console|${env.BUILD_TAG}>"
     error err
   }
-
 }

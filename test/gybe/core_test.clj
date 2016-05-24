@@ -3,7 +3,7 @@
             [gybe.core :refer :all]
             [clojure.data :refer [diff]]
             [clojure.xml :refer [parse]])
-  (:import [java.io File]
+  (:import [java.io File FileOutputStream]
            [org.apache.pdfbox.util PDFTextStripper]
            [org.apache.pdfbox.pdmodel PDDocument]))
 
@@ -680,13 +680,14 @@
 (deftest pdf-test
   (testing "basic FOP document written out to PDF"
     (is (= (let [test-file "resultdom2pdf.pdf"
-                 base-dir (File. ".")
-                 out-dir (File. base-dir "out")
-                 _ (.mkdirs out-dir)
-                 pdf-file (File. out-dir test-file)]
+                 base-dir  (File. ".")
+                 out-dir   (File. base-dir "out")
+                 _         (.mkdirs out-dir)
+                 pdf-file  (File. out-dir test-file)
+                 fops      (FileOutputStream. pdf-file)]
              (convert-dom->pdf
               (->fop [:fo:block
                       {:keep-together.within-page "always"}
-                      "garland texas"]) pdf-file)
+                      "garland texas"]) fops)
              (->> pdf-file PDDocument/load (.getText (PDFTextStripper.))))
            "garland texas\n"))))

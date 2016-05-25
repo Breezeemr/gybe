@@ -3,6 +3,12 @@
 final def consoleURL = "<${env.BUILD_URL}console|${env.BUILD_TAG}>"
 final def testResultURL = "<${env.BUILD_URL}testReport|${env.BUILD_TAG}>"
 
+// JUnitResultArchiver sets result="UNSTABLE" if tests fail, otherwise does
+// nothing (thus result == null).
+boolean buildIsGood() {
+  currentBuild.result == null || currentBuild.result == 'SUCCESS'
+}
+
 node {
   checkout scm
 
@@ -13,7 +19,7 @@ node {
   stage "Gathering test results"
   step([$class: 'JUnitResultArchiver', testResults: 'target/reports/TEST-gybe.xml'])
 
-  if (currentBuild.result == 'SUCCESS') {
+  if (buildIsGood()) {
     slackSend color: 'good', message: "Gybe tests succeeded: ${testResultURL}"
   } else {
     slackSend color: 'danger', message: "Gybe tests failed (${currentBuild.result}): ${testResultURL}"

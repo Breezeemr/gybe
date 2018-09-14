@@ -1,4 +1,5 @@
 (ns gybe.core
+  (:require [hiccup-to-xml-dom.core :refer [->dom]])
   (:import [java.io File OutputStream FileOutputStream]
            [javax.xml.parsers DocumentBuilder DocumentBuilderFactory ParserConfigurationException]
            [javax.xml.transform Result Source Transformer TransformerFactory]
@@ -9,66 +10,6 @@
 
 (def fo-ns "http://www.w3.org/1999/XSL/Format")
 (def fop-factory (. FopFactory (newInstance (. (File. ".") toURI))))
-
-(defn serialize-dom [dom]
-  (let [ls-impl (.. dom (getOwnerDocument) (getImplementation) (getFeature "LS" "3.0"))
-        serializer (.createLSSerializer ls-impl)]
-    (.. serializer (getDomConfig) (setParameter "xml-declaration" false))
-    (.writeToString serializer dom)))
-
-(defn- create-elem-ns [doc tag attrs content]
-  (let [el (. doc (createElementNS fo-ns (name tag)))
-        content (if (seq? content)
-                  content
-                  (list content))]
-    (doseq [[k v] attrs]
-      (.setAttributeNS el nil (name k) v))
-    (doseq [item content]
-      (cond
-        (string? item) (.appendChild
-                        el
-                        (.. el (getOwnerDocument) (createTextNode item)))
-        (not (nil? item)) (.appendChild el item)))
-    el))
-
-(defn- element-compile-strategy
-  "Returns the compilation strategy to use for a given element."
-  [[doc tag attrs & content :as element]]
-  (cond
-    (not-any? coll? (rest element)) ::all-literal ; e.g. [:span "foo"]
-    (and (keyword? tag) (map? attrs)) ::literal-tag-and-attributes     ; e.g. [:span {} x]
-    :else ::default))                      ; e.g. [x]
-
-(defmulti #^{:private true} compile-element element-compile-strategy)
-(defmethod compile-element ::all-literal
-  [[doc tag & content]]
-  (create-elem-ns doc tag {} content))
-(defmethod compile-element ::literal-tag-and-attributes
-  [[doc tag attrs & content]]
-  (create-elem-ns doc tag attrs
-    (map #(if (vector? %)
-           (->> % (into [doc]) compile-element)
-           %)
-      content)))
-(defmethod compile-element ::default
-  [[doc tag & else]]
-  (compile-element
-   (into [doc tag]
-         (for [e else]
-           (if (vector? e)
-             (compile-element (into [doc] e))
-             e)))))
-
-(defn- make-document-builder []
-  (let [dbf (DocumentBuilderFactory/newInstance)
-        _ (.setNamespaceAware dbf true)
-        db (.newDocumentBuilder dbf)]
-    db))
-
-(defn ->dom [content]
-  (let [db (make-document-builder)
-        doc-root (.newDocument db)]
-    (compile-element (into [doc-root] content))))
 
 (defn convert-dom->pdf
   "takes a byte array output stream and renders a FOP PDF to it"
@@ -81,16 +22,27 @@
         res (SAXResult. (.getDefaultHandler fop))]
     (. trans (transform src res))))
 
-(defn ->fop [& content]
+(defn ->fop
+  [{:keys [page-type page-height page-width margin-top margin-bottom margin-left margin-right doc-ns]
+    :or {page-type "letter"
+         page-height "11in"
+         page-width "8.5in"
+         margin-top "1in"
+         margin-bottom "1in"
+         margin-left "1in"
+         margin-right "1in"
+         doc-ns fo-ns}}
+   & content]
   (->dom [:fo:root
           [:fo:layout-master-set
-           [:fo:simple-page-master {:master-name "letter"
-                                    :page-height "11in"
-                                    :page-width "8.5in"
-                                    :margin-top "1in"
-                                    :margin-bottom "1in"
-                                    :margin-left "1in"
-                                    :margin-right "1in"}
+           [:fo:simple-page-master {:master-name page-type
+                                    :page-height page-height
+                                    :page-width  page-width
+                                    :margin-top  margin-top
+                                    :margin-bottom margin-bottom
+                                    :margin-left  margin-left
+                                    :margin-right margin-right}
             [:fo:region-body]]]
           [:fo:page-sequence {:master-reference "letter"}
-           (into [:fo:flow {:flow-name "xsl-region-body"}] content)]]))
+           (into [:fo:flow {:flow-name "xsl-region-body"}] content)]]
+         :document-namespace doc-ns))

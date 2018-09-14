@@ -1,38 +1,16 @@
 (ns gybe.core-test
   (:require [clojure.test :refer :all]
             [gybe.core :refer :all]
+            [hiccup-to-xml-dom.core :refer [serialize-dom ->dom]]
             [clojure.data :refer [diff]]
             [clojure.xml :refer [parse]])
   (:import [java.io File FileOutputStream]
            [org.apache.pdfbox.util PDFTextStripper]
            [org.apache.pdfbox.pdmodel PDDocument]))
 
-(deftest dom-test
-  (testing "can create a single xml dom node with no attributes & no content"
-    (is (= (serialize-dom (->dom [:fo:box]))
-           "<fo:box xmlns:fo=\"http://www.w3.org/1999/XSL/Format\"/>")))
-
-  (testing "can create a single xml dom node with no attributes"
-    (is (= (serialize-dom (->dom [:fo:box "garland texas"]))
-           "<fo:box xmlns:fo=\"http://www.w3.org/1999/XSL/Format\">garland texas</fo:box>")))
-
-  (testing "can create a single xml dom node"
-    (is (= (serialize-dom (->dom [:fo:box {:keep-together.within-page "always"} "garland texas"]))
-           "<fo:box xmlns:fo=\"http://www.w3.org/1999/XSL/Format\" keep-together.within-page=\"always\">garland texas</fo:box>")))
-
-  (testing "can create nested dom node with no attributes"
-    (is (= (serialize-dom (->dom [:fo:root [:fo:layout-master-set "f"]]))
-           "<fo:root xmlns:fo=\"http://www.w3.org/1999/XSL/Format\"><fo:layout-master-set>f</fo:layout-master-set></fo:root>")))
-
-  (testing "can create nested dom node with attributes on child"
-    (is (= (serialize-dom
-            (->dom [:fo:root [:fo:layout-master-set {:d "dork"} "f"]]))
-           "<fo:root xmlns:fo=\"http://www.w3.org/1999/XSL/Format\"><fo:layout-master-set d=\"dork\">f</fo:layout-master-set></fo:root>")))
-
-  (testing "can create nested dom node with attributes on parent"
-    (is (= (serialize-dom
-            (->dom [:fo:root {:d "dork"} [:fo:layout-master-set "f"]]))
-           "<fo:root xmlns:fo=\"http://www.w3.org/1999/XSL/Format\" d=\"dork\"><fo:layout-master-set>f</fo:layout-master-set></fo:root>"))))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Using FOP documents as an example of valid XML to generate.
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (def fop-table-borders-doc
   "matches test/fo/table-borders.fo"
@@ -655,20 +633,21 @@
 (deftest fop-test
   (testing "can create a basic FOP document"
     (is (= (serialize-dom
-            (->fop
+            (->fop {}
              [:fo:box {:keep-together.within-page "always"} "garland texas"]))
            "<fo:root xmlns:fo=\"http://www.w3.org/1999/XSL/Format\"><fo:layout-master-set><fo:simple-page-master margin-bottom=\"1in\" margin-left=\"1in\" margin-right=\"1in\" margin-top=\"1in\" master-name=\"letter\" page-height=\"11in\" page-width=\"8.5in\"><fo:region-body/></fo:simple-page-master></fo:layout-master-set><fo:page-sequence master-reference=\"letter\"><fo:flow flow-name=\"xsl-region-body\"><fo:box keep-together.within-page=\"always\">garland texas</fo:box></fo:flow></fo:page-sequence></fo:root>")))
 
   (testing "can create a basic FOP document with multiple elements in <fo:flow/>"
     (is (= (serialize-dom
-            (->fop
+            (->fop {}
              [:fo:block {:keep-together.within-page "always"} "garland texas"]
              [:fo:block {:keep-together.within-page "always"} "russia texas"]))
            "<fo:root xmlns:fo=\"http://www.w3.org/1999/XSL/Format\"><fo:layout-master-set><fo:simple-page-master margin-bottom=\"1in\" margin-left=\"1in\" margin-right=\"1in\" margin-top=\"1in\" master-name=\"letter\" page-height=\"11in\" page-width=\"8.5in\"><fo:region-body/></fo:simple-page-master></fo:layout-master-set><fo:page-sequence master-reference=\"letter\"><fo:flow flow-name=\"xsl-region-body\"><fo:block keep-together.within-page=\"always\">garland texas</fo:block><fo:block keep-together.within-page=\"always\">russia texas</fo:block></fo:flow></fo:page-sequence></fo:root>")))
   
   (testing "more complex FOP document"
     (let [serialized-doc (str "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
-                              (serialize-dom (->dom fop-table-borders-doc)))
+                              (serialize-dom (->dom fop-table-borders-doc
+                                                    :document-namespace fo-ns)))
           results (diff
                    (parse
                     (java.io.ByteArrayInputStream. 
@@ -686,8 +665,8 @@
                  pdf-file  (File. out-dir test-file)
                  fops      (FileOutputStream. pdf-file)]
              (convert-dom->pdf
-              (->fop [:fo:block
-                      {:keep-together.within-page "always"}
-                      "garland texas"]) fops)
+              (->fop {} [:fo:block
+                         {:keep-together.within-page "always"}
+                         "garland texas"]) fops)
              (->> pdf-file PDDocument/load (.getText (PDFTextStripper.))))
            "garland texas\n"))))

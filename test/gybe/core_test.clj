@@ -667,6 +667,7 @@
              (convert-dom->pdf
               (->fop {} [:fo:block
                          {:keep-together.within-page "always"}
-                         "garland texas"]) fops)
+                         "garland texas"])
+              fops)
              (->> pdf-file PDDocument/load (.getText (PDFTextStripper.))))
            "garland texas\n"))))

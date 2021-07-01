@@ -1,0 +1,15 @@
+{:aliases
+   {:jenkins {:extra-deps {org.apache.pdfbox/pdfbox {:mvn/version "1.8.10"}}},
+    :repl {:extra-deps {org.apache.pdfbox/pdfbox {:mvn/version "1.8.10"}}},
+    :runner {:extra-deps {com.cognitect/test-runner
+                            {:git/url
+                               "https://github.com/cognitect-labs/test-runner",
+                             :sha "76568540e7f40268ad2b646110f237a60295fa3c"}},
+             :main-opts ["-m" "cognitect.test-runner" "-d" "test"]},
+    :test {:extra-deps {org.apache.pdfbox/pdfbox {:mvn/version "1.8.10"},
+                        org.clojure/test.check {:mvn/version "RELEASE"}},
+           :extra-paths ["test"]}},
+ :deps {com.breezeehr/hiccup-to-xml-dom   {:local/root "../static-libs/hiccup-to-xml-dom-0.1.0.jar"}
+        org.apache.xmlgraphics/fop {:mvn/version "2.0"},
+        org.clojure/clojure {:mvn/version "1.9.0"}},
+ :paths ["src" "resources"]}
